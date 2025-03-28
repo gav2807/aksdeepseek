@@ -2,7 +2,7 @@ trigger:
   - main
 
 variables:
-  - group: 'aksgp'  # Variable group with Client ID and Client Secret
+  group: 'aksgp'  # Variable group with Client ID and Client Secret
   resourceGroupName: 'aksrglab'
   aksClusterName: 'deepseek-aks'
   parametersFile: 'aks.parameters.json'
