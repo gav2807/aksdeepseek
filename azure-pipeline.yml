@@ -12,9 +12,9 @@ variables:
   - name: 'namespace'
     value: 'deepseek'
   - name: 'dockerImage'
-    value: 'ghcr.io/open-webui'
+    value: 'mdelapenya/deepseek-coder'
   - name: 'dockerTag'
-    value: 'ollama'
+    value: 'latest-1.3b'
 
 stages:
 - stage: Deploy_AKS
