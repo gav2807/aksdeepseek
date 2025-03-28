@@ -54,20 +54,18 @@ stages:
       name: 'dsha'  # Ensure this is a valid agent pool
 
     steps:
-    - task: Script@2
+    - task: PowerShell@2
       displayName: 'Create Namespace'
       inputs:
-        scriptType: 'pscore'
-        scriptLocation: 'inlineScript'
-        inlineScript: |
+        targetType: 'inline'
+        script: |
           kubectl create namespace $(namespace) --dry-run=client -o yaml | kubectl apply -f -
 
-    - task: Script@2
+    - task: PowerShell@2
       displayName: 'Deploy DeepSeek AI Container'
       inputs:
-        scriptType: 'pscore'
-        scriptLocation: 'inlineScript'
-        inlineScript: |
+        targetType: 'inline'
+        script: |
           $yaml = @"
           apiVersion: apps/v1
           kind: Deployment
@@ -93,12 +91,11 @@ stages:
           $yaml | Out-File -FilePath deepseek-deployment.yaml -Encoding utf8
           kubectl apply -f deepseek-deployment.yaml
 
-    - task: Script@2
+    - task: PowerShell@2
       displayName: 'Expose DeepSeek Service'
       inputs:
-        scriptType: 'pscore'
-        scriptLocation: 'inlineScript'
-        inlineScript: |
+        targetType: 'inline'
+        script: |
           $yaml = @"
           apiVersion: v1
           kind: Service
