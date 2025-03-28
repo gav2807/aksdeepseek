@@ -54,56 +54,65 @@ stages:
       name: 'dsha'  # Ensure this is a valid agent pool
 
     steps:
-    - script: |
-        kubectl create namespace $(namespace) --dry-run=client -o yaml | kubectl apply -f -
+    - task: Script@2
       displayName: 'Create Namespace'
-      shell: pwsh
+      inputs:
+        scriptType: 'pscore'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          kubectl create namespace $(namespace) --dry-run=client -o yaml | kubectl apply -f -
 
-    - script: |
-        $yaml = @"
-        apiVersion: apps/v1
-        kind: Deployment
-        metadata:
-          name: deepseek-deployment
-          namespace: $(namespace)
-        spec:
-          replicas: 1
-          selector:
-            matchLabels:
-              app: deepseek
-          template:
-            metadata:
-              labels:
-                app: deepseek
-            spec:
-              containers:
-              - name: deepseek
-                image: $(dockerImage):$(dockerTag)
-                ports:
-                - containerPort: 8080
-        "@
-        $yaml | Out-File -FilePath deepseek-deployment.yaml -Encoding utf8
-        kubectl apply -f deepseek-deployment.yaml
+    - task: Script@2
       displayName: 'Deploy DeepSeek AI Container'
-      shell: pwsh
+      inputs:
+        scriptType: 'pscore'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          $yaml = @"
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: deepseek-deployment
+            namespace: $(namespace)
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: deepseek
+            template:
+              metadata:
+                labels:
+                  app: deepseek
+              spec:
+                containers:
+                - name: deepseek
+                  image: $(dockerImage):$(dockerTag)
+                  ports:
+                  - containerPort: 8080
+          "@
+          $yaml | Out-File -FilePath deepseek-deployment.yaml -Encoding utf8
+          kubectl apply -f deepseek-deployment.yaml
 
-    - script: |
-        $yaml = @"
-        apiVersion: v1
-        kind: Service
-        metadata:
-          name: deepseek-service
-          namespace: $(namespace)
-        spec:
-          selector:
-            app: deepseek
-          ports:
-            - protocol: TCP
-              port: 80
-              targetPort: 8080
-          type: LoadBalancer
-        "@
-        $yaml | Out-File -FilePath deepseek-service.yaml -Encoding utf8
-        kubectl apply -f deepseek-service.yaml
+    - task: Script@2
       displayName: 'Expose DeepSeek Service'
-      shell: pwsh
+      inputs:
+        scriptType: 'pscore'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          $yaml = @"
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: deepseek-service
+            namespace: $(namespace)
+          spec:
+            selector:
+              app: deepseek
+            ports:
+              - protocol: TCP
+                port: 80
+                targetPort: 8080
+            type: LoadBalancer
+          "@
+          $yaml | Out-File -FilePath deepseek-service.yaml -Encoding utf8
+          kubectl apply -f deepseek-service.yaml
