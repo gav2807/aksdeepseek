@@ -27,7 +27,7 @@ stages:
         scriptType: 'pscore'
         scriptLocation: 'inlineScript'
         inlineScript: |
-          az deployment group create --resource-group $(resourceGroupName) --template-file k8s.bicep --parameters @$(parametersFile)
+          az deployment group create --resource-group $(resourceGroupName) --template-file k8s.bicep --parameters $(parametersFile)
 
     - task: AzureCLI@2
       displayName: 'Get AKS Credentials'
