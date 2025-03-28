@@ -5,6 +5,7 @@ param nodeCount int = 2
 param nodeVmSize string 
 param kubernetesVersion string 
 param servicePrincipalClientId string
+@secure()
 param servicePrincipalClientSecret string
 
 resource aksCluster 'Microsoft.ContainerService/managedClusters@2023-05-01' = {
@@ -26,4 +27,4 @@ resource aksCluster 'Microsoft.ContainerService/managedClusters@2023-05-01' = {
   }
 }
 
-output kubeconfig string = aksCluster.properties.kubeConfig
+output kubeconfig string = aksCluster.properties.fqdn
