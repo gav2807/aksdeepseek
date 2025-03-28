@@ -4,6 +4,8 @@ param dnsPrefix string
 param nodeCount int = 2
 param nodeVmSize string 
 param kubernetesVersion string 
+param servicePrincipalClientId string
+param servicePrincipalClientSecret string
 
 resource aksCluster 'Microsoft.ContainerService/managedClusters@2023-05-01' = {
   name: clusterName
@@ -17,6 +19,10 @@ resource aksCluster 'Microsoft.ContainerService/managedClusters@2023-05-01' = {
       vmSize: nodeVmSize
       mode: 'System'
     }]
+    servicePrincipalProfile: {
+      clientId: servicePrincipalClientId 
+      secret:  servicePrincipalClientSecret 
+    } 
   }
 }
 

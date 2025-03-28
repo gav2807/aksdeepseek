@@ -2,7 +2,7 @@ trigger:
   - main
 
 variables:
-  #azureSubscription: 'bicepaibspn'
+  - group: 'aksgp'  # Variable group with Client ID and Client Secret
   resourceGroupName: 'aksrglab'
   aksClusterName: 'deepseek-aks'
   parametersFile: 'aks.parameters.json'
@@ -26,7 +26,8 @@ stages:
         azureSubscription: 'bicepaibspn'
         scriptType: 'pscore'
         scriptLocation: 'inlineScript'
-        inlineScript: 'az deployment group create --resource-group $(resourceGroupName) --template-file k8s.bicep --parameters $(parametersFile)'
+        inlineScript: |
+          az deployment group create --resource-group $(resourceGroupName) --template-file k8s.bicep --parameters $(parametersFile) servicePrincipalClientId=$(ServicePrincipalClientId) servicePrincipalClientSecret=$(ServicePrincipalClientSecret)
 
     - task: AzureCLI@2
       displayName: 'Get AKS Credentials'
@@ -34,7 +35,8 @@ stages:
         azureSubscription: 'bicepaibspn'
         scriptType: 'pscore'
         scriptLocation: 'inlineScript'
-        inlineScript: 'az aks get-credentials --resource-group $(resourceGroupName) --name $(aksClusterName) --overwrite-existing'
+        inlineScript: |
+          az aks get-credentials --resource-group $(resourceGroupName) --name $(aksClusterName) --overwrite-existing
 
 - stage: Deploy_DeepSeek
   displayName: 'Deploy DeepSeek to AKS'
