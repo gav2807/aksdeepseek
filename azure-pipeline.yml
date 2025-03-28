@@ -2,13 +2,19 @@ trigger:
   - main
 
 variables:
-  group: 'aksgp'  # Variable group with Client ID and Client Secret
-  resourceGroupName: 'aksrglab'
-  aksClusterName: 'deepseek-aks'
-  parametersFile: 'aks.parameters.json'
-  namespace: 'deepseek'
-  dockerImage: 'deepseek-ai/deepseek-coder'
-  dockerTag: 'latest'
+  - group: 'aksgp'  # Variable group with Client ID and Client Secret
+  - name: 'resourceGroupName'
+    value: 'aksrglab'
+  - name: 'aksClusterName'
+    value: 'deepseek-aks'
+  - name: 'parametersFile'
+    value: 'aks.parameters.json'
+  - name: 'namespace'
+    value: 'deepseek'
+  - name: 'dockerImage'
+    value: 'deepseek-ai/deepseek-coder'
+  - name: 'dockerTag'
+    value: 'latest'
 
 stages:
 - stage: Deploy_AKS
