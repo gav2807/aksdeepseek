@@ -51,7 +51,6 @@ stages:
     - script: |
         kubectl create namespace $(namespace) --dry-run=client -o yaml | kubectl apply -f -
       displayName: 'Create Namespace'
-      shell: pwsh
 
     - script: |
         $yaml = @"
@@ -79,7 +78,6 @@ stages:
         $yaml | Out-File -FilePath deepseek-deployment.yaml -Encoding utf8
         kubectl apply -f deepseek-deployment.yaml
       displayName: 'Deploy DeepSeek AI Container'
-      shell: pwsh
 
     - script: |
         $yaml = @"
@@ -100,4 +98,3 @@ stages:
         $yaml | Out-File -FilePath deepseek-service.yaml -Encoding utf8
         kubectl apply -f deepseek-service.yaml
       displayName: 'Expose DeepSeek Service'
-      shell: pwsh
