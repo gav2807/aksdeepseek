@@ -12,7 +12,7 @@ variables:
   - name: 'namespace'
     value: 'deepseek'
   - name: 'dockerImage'
-    value: 'deepseek-ai/deepseek-coder'
+    value: 'ai/deepseek-r1-distill-llama'
   - name: 'dockerTag'
     value: 'latest'
 
