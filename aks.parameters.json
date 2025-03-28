@@ -18,7 +18,7 @@
         "value": "Standard_DS3_v2"
       },
       "kubernetesVersion": {
-        "value": "1.27.3"
+        "value": "1.30.0"
       }
     }
   }
