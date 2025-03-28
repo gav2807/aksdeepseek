@@ -1,0 +1,103 @@
+trigger:
+  - main
+
+variables:
+  azureSubscription: 'bicepaibspn'
+  resourceGroupName: 'aksrglab'
+  aksClusterName: 'deepseek-aks'
+  parametersFile: 'aks.parameters.json'
+  namespace: 'deepseek'
+  dockerImage: 'deepseek-ai/deepseek-coder'
+  dockerTag: 'latest'
+
+stages:
+- stage: Deploy_AKS
+  displayName: 'Deploy AKS using Bicep'
+  jobs:
+  - job: Deploy_AKS
+    displayName: 'Deploy AKS Cluster'
+    pool:
+      name: 'dsha'  # Ensure this is your correct self-hosted agent pool
+
+    steps:
+    - task: AzureCLI@2
+      displayName: 'Deploy AKS using Bicep'
+      inputs:
+        azureSubscription: $(azureSubscription)
+        scriptType: 'pscore'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          az deployment group create --resource-group $(resourceGroupName) --template-file k8s.bicep --parameters @$(parametersFile)
+
+    - task: AzureCLI@2
+      displayName: 'Get AKS Credentials'
+      inputs:
+        azureSubscription: $(azureSubscription)
+        scriptType: 'pscore'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          az aks get-credentials --resource-group $(resourceGroupName) --name $(aksClusterName) --overwrite-existing
+
+- stage: Deploy_DeepSeek
+  displayName: 'Deploy DeepSeek to AKS'
+  dependsOn: Deploy_AKS
+  jobs:
+  - job: Deploy_DeepSeek
+    displayName: 'Deploy DeepSeek Container'
+    pool:
+      name: 'nodepool1'  # Ensure this is a valid agent pool
+
+    steps:
+    - script: |
+        kubectl create namespace $(namespace) --dry-run=client -o yaml | kubectl apply -f -
+      displayName: 'Create Namespace'
+      shell: pwsh
+
+    - script: |
+        $yaml = @"
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: deepseek-deployment
+          namespace: $(namespace)
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app: deepseek
+          template:
+            metadata:
+              labels:
+                app: deepseek
+            spec:
+              containers:
+              - name: deepseek
+                image: $(dockerImage):$(dockerTag)
+                ports:
+                - containerPort: 8080
+        "@
+        $yaml | Out-File -FilePath deepseek-deployment.yaml -Encoding utf8
+        kubectl apply -f deepseek-deployment.yaml
+      displayName: 'Deploy DeepSeek AI Container'
+      shell: pwsh
+
+    - script: |
+        $yaml = @"
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: deepseek-service
+          namespace: $(namespace)
+        spec:
+          selector:
+            app: deepseek
+          ports:
+            - protocol: TCP
+              port: 80
+              targetPort: 8080
+          type: LoadBalancer
+        "@
+        $yaml | Out-File -FilePath deepseek-service.yaml -Encoding utf8
+        kubectl apply -f deepseek-service.yaml
+      displayName: 'Expose DeepSeek Service'
+      shell: pwsh
