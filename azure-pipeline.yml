@@ -13,177 +13,184 @@ variables:
     value: 'grafana'
 
 stages:
-- stage: Deploy_AKS
-  displayName: 'Deploy AKS using Bicep'
-  jobs:
-  - job: Deploy_AKS
-    displayName: 'Deploy AKS Cluster'
-    pool:
-      name: 'dsha'  # Ensure this is your correct self-hosted agent pool
+  - stage: Deploy_AKS
+    displayName: 'Deploy AKS using Bicep'
+    jobs:
+      - job: Deploy_AKS
+        displayName: 'Deploy AKS Cluster'
+        pool:
+          name: 'dsha'  # Ensure this is your correct self-hosted agent pool
 
-    steps:
-    - task: AzureCLI@2
-      displayName: 'Deploy AKS using Bicep'
-      inputs:
-        azureSubscription: 'bicepaibspn'
-        scriptType: 'pscore'
-        scriptLocation: 'inlineScript'
-        inlineScript: |
-          az deployment group create --resource-group $(resourceGroupName) --template-file k8s.bicep --parameters $(parametersFile) servicePrincipalClientId=$(ServicePrincipalClientId) servicePrincipalClientSecret=$(ServicePrincipalClientSecret)
+        steps:
+          - task: AzureCLI@2
+            displayName: 'Deploy AKS using Bicep'
+            inputs:
+              azureSubscription: 'bicepaibspn'
+              scriptType: 'pscore'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                az deployment group create --resource-group $(resourceGroupName) --template-file k8s.bicep --parameters $(parametersFile) servicePrincipalClientId=$(ServicePrincipalClientId) servicePrincipalClientSecret=$(ServicePrincipalClientSecret)
 
-    - task: AzureCLI@2
-      displayName: 'Get AKS Credentials'
-      inputs:
-        azureSubscription: 'bicepaibspn'
-        scriptType: 'pscore'
-        scriptLocation: 'inlineScript'
-        inlineScript: |
-          az aks get-credentials --resource-group $(resourceGroupName) --name $(aksClusterName) --overwrite-existing
+          - task: AzureCLI@2
+            displayName: 'Get AKS Credentials'
+            inputs:
+              azureSubscription: 'bicepaibspn'
+              scriptType: 'pscore'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                az aks get-credentials --resource-group $(resourceGroupName) --name $(aksClusterName) --overwrite-existing
 
-- stage: Deploy_Grafana
-  displayName: 'Deploy Grafana to AKS'
-  dependsOn: Deploy_AKS
-  jobs:
-  - job: Deploy_Grafana
-    displayName: 'Deploy Grafana Container'
-    pool:
-      name: 'dsha'  # Ensure this is a valid agent pool
+  - stage: Deploy_Grafana
+    displayName: 'Deploy Grafana to AKS'
+    dependsOn: Deploy_AKS
+    jobs:
+      - job: Deploy_Grafana
+        displayName: 'Deploy Grafana Container'
+        pool:
+          name: 'dsha'  # Ensure this is a valid agent pool
 
-    steps:
-    - task: PowerShell@2
-      displayName: 'Create Namespace'
-      inputs:
-        targetType: 'inline'
-        script: |
-          kubectl create namespace $(namespace) --dry-run=client -o yaml | kubectl apply -f -
+        steps:
+          - task: PowerShell@2
+            displayName: 'Create Namespace'
+            inputs:
+              targetType: 'inline'
+              script: |
+                kubectl create namespace $(namespace) --dry-run=client -o yaml | kubectl apply -f -
 
-    ## 🚀 Create StorageClass ##
-    - task: PowerShell@2
-      displayName: 'Create StorageClass'
-      inputs:
-        targetType: 'inline'
-        script: |
-          $yaml = @"
-          apiVersion: storage.k8s.io/v1
-          kind: StorageClass
-          metadata:
-            name: grafana-storage-class
-          provisioner: disk.csi.azure.com
-          parameters:
-            skuName: Standard_LRS
-          reclaimPolicy: Retain
-          volumeBindingMode: WaitForFirstConsumer
-          "@
-          $yaml | Out-File -FilePath grafana-storage-class.yaml -Encoding utf8
-          kubectl apply -f grafana-storage-class.yaml
+          ## 🚀 Create StorageClass ##
+          - task: PowerShell@2
+            displayName: 'Create StorageClass'
+            inputs:
+              targetType: 'inline'
+              script: |
+                $yaml = @"
+                apiVersion: storage.k8s.io/v1
+                kind: StorageClass
+                metadata:
+                  name: grafana-storage-class
+                provisioner: disk.csi.azure.com
+                parameters:
+                  skuName: Standard_LRS
+                reclaimPolicy: Retain
+                volumeBindingMode: WaitForFirstConsumer
+                "@
+                $yaml | Out-File -FilePath grafana-storage-class.yaml -Encoding utf8
+                kubectl apply -f grafana-storage-class.yaml
 
-    ## 🚀 Create PersistentVolume ##
-    - task: PowerShell@2
-      displayName: 'Create PersistentVolume'
-      inputs:
-        targetType: 'inline'
-        script: |
-          $yaml = @"
-          apiVersion: v1
-          kind: PersistentVolume
-          metadata:
-            name: grafana-pv
-          spec:
-            capacity:
-              storage: 10Gi
-            accessModes:
-              - ReadWriteOnce
-            persistentVolumeReclaimPolicy: Retain
-            storageClassName: grafana-storage-class
-            azureDisk:
-              kind: Managed
-              diskName: grafana-disk
-              diskURI: /subscriptions/de991dcf-6e08-4849-8e37-d1494a815a94/resourceGroups/aksrglab/providers/Microsoft.Compute/disks/grafana-disk
-          "@
-          $yaml | Out-File -FilePath grafana-pv.yaml -Encoding utf8
-          kubectl apply -f grafana-pv.yaml
+          ## 🚀 Create PersistentVolume ##
+          - task: PowerShell@2
+            displayName: 'Create PersistentVolume'
+            inputs:
+              targetType: 'inline'
+              script: |
+                $yaml = @"
+                apiVersion: v1
+                kind: PersistentVolume
+                metadata:
+                  name: grafana-pv
+                spec:
+                  capacity:
+                    storage: 10Gi
+                  accessModes:
+                    - ReadWriteOnce
+                  persistentVolumeReclaimPolicy: Retain
+                  storageClassName: grafana-storage-class
+                  azureDisk:
+                    kind: Managed
+                    diskName: grafana-disk
+                    diskURI: /subscriptions/de991dcf-6e08-4849-8e37-d1494a815a94/resourceGroups/aksrglab/providers/Microsoft.Compute/disks/grafana-disk
+                "@
+                $yaml | Out-File -FilePath grafana-pv.yaml -Encoding utf8
+                kubectl apply -f grafana-pv.yaml
 
-    ## 🚀 Create PersistentVolumeClaim (PVC) ##
-    - task: PowerShell@2
-      displayName: 'Create Grafana PVC'
-      inputs:
-        targetType: 'inline'
-        script: |
-          $yaml = @"
-          apiVersion: v1
-          kind: PersistentVolumeClaim
-          metadata:
-            name: grafana-pvc
-            namespace: $(namespace)
-          spec:
-            accessModes:
-              - ReadWriteOnce
-            resources:
-              requests:
-                storage: 10Gi
-            storageClassName: grafana-storage-class
-          "@
-          $yaml | Out-File -FilePath grafana-pvc.yaml -Encoding utf8
-          kubectl apply -f grafana-pvc.yaml
+          ## 🚀 Create PersistentVolumeClaim (PVC) ##
+          - task: PowerShell@2
+            displayName: 'Create Grafana PVC'
+            inputs:
+              targetType: 'inline'
+              script: |
+                $yaml = @"
+                apiVersion: v1
+                kind: PersistentVolumeClaim
+                metadata:
+                  name: grafana-pvc
+                  namespace: $(namespace)
+                spec:
+                  accessModes:
+                    - ReadWriteOnce
+                  resources:
+                    requests:
+                      storage: 10Gi
+                  storageClassName: grafana-storage-class
+                "@
+                $yaml | Out-File -FilePath grafana-pvc.yaml -Encoding utf8
+                kubectl apply -f grafana-pvc.yaml
 
-    ## 🚀 Deploy Grafana ##
-    - task: PowerShell@2
-      displayName: 'Deploy Grafana'
-      inputs:
-        targetType: 'inline'
-        script: |
-          $yaml = @"
-          apiVersion: apps/v1
-          kind: Deployment
-          metadata:
-            name: grafana
-            namespace: $(namespace)
-          spec:
-            replicas: 1
-            selector:
-              matchLabels:
-                app: grafana
-            template:
-              metadata:
-                labels:
-                  app: grafana
-              spec:
-                containers:
-                - name: grafana
-                  image: grafana/grafana:latest
+          ## 🚀 Deploy Grafana ##
+          - task: PowerShell@2
+            displayName: 'Deploy Grafana'
+            inputs:
+              targetType: 'inline'
+              script: |
+                $yaml = @"
+                apiVersion: apps/v1
+                kind: Deployment
+                metadata:
+                  name: grafana
+                  namespace: grafana
+                spec:
+                  replicas: 1
+                  selector:
+                    matchLabels:
+                      app: grafana
+                  template:
+                    metadata:
+                      labels:
+                        app: grafana
+                    spec:
+                      initContainers:
+                      - name: fix-permissions
+                        image: busybox
+                        command: ["sh", "-c", "chown -R 472:472 /var/lib/grafana"]
+                        volumeMounts:
+                        - name: grafana-storage
+                          mountPath: /var/lib/grafana
+                      containers:
+                      - name: grafana
+                        image: grafana/grafana:latest
+                        ports:
+                        - containerPort: 3000
+                        volumeMounts:
+                        - name: grafana-storage
+                          mountPath: /var/lib/grafana
+                      volumes:
+                      - name: grafana-storage
+                        persistentVolumeClaim:
+                          claimName: grafana-pvc
+                "@
+                $yaml | Out-File -FilePath grafana-deployment.yaml -Encoding utf8
+                kubectl apply -f grafana-deployment.yaml
+
+          ## 🚀 Expose Grafana ##
+          - task: PowerShell@2
+            displayName: 'Expose Grafana Service'
+            inputs:
+              targetType: 'inline'
+              script: |
+                $yaml = @"
+                apiVersion: v1
+                kind: Service
+                metadata:
+                  name: grafana-service
+                  namespace: $(namespace)
+                spec:
+                  selector:
+                    app: grafana
                   ports:
-                  - containerPort: 3000
-                  volumeMounts:
-                  - name: grafana-storage
-                    mountPath: /var/lib/grafana
-                volumes:
-                - name: grafana-storage
-                  persistentVolumeClaim:
-                    claimName: grafana-pvc
-          "@
-          $yaml | Out-File -FilePath grafana-deployment.yaml -Encoding utf8
-          kubectl apply -f grafana-deployment.yaml
-
-    ## 🚀 Expose Grafana ##
-    - task: PowerShell@2
-      displayName: 'Expose Grafana Service'
-      inputs:
-        targetType: 'inline'
-        script: |
-          $yaml = @"
-          apiVersion: v1
-          kind: Service
-          metadata:
-            name: grafana-service
-            namespace: $(namespace)
-          spec:
-            selector:
-              app: grafana
-            ports:
-              - protocol: TCP
-                port: 80
-                targetPort: 3000
-            type: LoadBalancer
-          "@
-          $yaml | Out-File -FilePath grafana-service.yaml -Encoding utf8
-          kubectl apply -f grafana-service.yaml
+                    - protocol: TCP
+                      port: 80
+                      targetPort: 3000
+                  type: LoadBalancer
+                "@
+                $yaml | Out-File -FilePath grafana-service.yaml -Encoding utf8
+                kubectl apply -f grafana-service.yaml
