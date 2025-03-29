@@ -6,15 +6,11 @@ variables:
   - name: 'resourceGroupName'
     value: 'aksrglab'
   - name: 'aksClusterName'
-    value: 'deepseek-aks'
+    value: 'grafana-aks'
   - name: 'parametersFile'
     value: 'aks.parameters.json'
   - name: 'namespace'
     value: 'grafana'
-  # - name: 'dockerImage'
-  #   value: 'grafana/grafana'
-  # - name: 'dockerTag'
-  #   value: 'main-ubuntu'
 
 stages:
 - stage: Deploy_AKS
@@ -61,7 +57,53 @@ stages:
         script: |
           kubectl create namespace $(namespace) --dry-run=client -o yaml | kubectl apply -f -
 
-    ## 🚀 Create PVC for Grafana ##
+    ## 🚀 Create StorageClass ##
+    - task: PowerShell@2
+      displayName: 'Create StorageClass'
+      inputs:
+        targetType: 'inline'
+        script: |
+          $yaml = @"
+          apiVersion: storage.k8s.io/v1
+          kind: StorageClass
+          metadata:
+            name: grafana-storage-class
+          provisioner: disk.csi.azure.com
+          parameters:
+            skuName: Standard_LRS
+          reclaimPolicy: Retain
+          volumeBindingMode: WaitForFirstConsumer
+          "@
+          $yaml | Out-File -FilePath grafana-storage-class.yaml -Encoding utf8
+          kubectl apply -f grafana-storage-class.yaml
+
+    ## 🚀 Create PersistentVolume ##
+    - task: PowerShell@2
+      displayName: 'Create PersistentVolume'
+      inputs:
+        targetType: 'inline'
+        script: |
+          $yaml = @"
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: grafana-pv
+          spec:
+            capacity:
+              storage: 10Gi
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Retain
+            storageClassName: grafana-storage-class
+            azureDisk:
+              kind: Managed
+              diskName: grafana-disk
+              diskURI: /subscriptions/de991dcf-6e08-4849-8e37-d1494a815a94/resourceGroups/aksrglab/providers/Microsoft.Compute/disks/grafana-disk
+          "@
+          $yaml | Out-File -FilePath grafana-pv.yaml -Encoding utf8
+          kubectl apply -f grafana-pv.yaml
+
+    ## 🚀 Create PersistentVolumeClaim (PVC) ##
     - task: PowerShell@2
       displayName: 'Create Grafana PVC'
       inputs:
@@ -79,6 +121,7 @@ stages:
             resources:
               requests:
                 storage: 10Gi
+            storageClassName: grafana-storage-class
           "@
           $yaml | Out-File -FilePath grafana-pvc.yaml -Encoding utf8
           kubectl apply -f grafana-pvc.yaml
@@ -144,4 +187,3 @@ stages:
           "@
           $yaml | Out-File -FilePath grafana-service.yaml -Encoding utf8
           kubectl apply -f grafana-service.yaml
-

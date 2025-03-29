@@ -3,10 +3,10 @@
     "contentVersion": "1.0.0.0",
     "parameters": {
       "clusterName": {
-        "value": "deepseek-aks"
+        "value": "grafana-aks"
       },
       "dnsPrefix": {
-        "value": "deepseek"
+        "value": "grafana"
       },
       "location": {
         "value": "uksouth"
