@@ -12,9 +12,9 @@ variables:
   - name: 'namespace'
     value: 'deepseek'
   - name: 'dockerImage'
-    value: 'mdelapenya/deepseek-coder'
+    value: 'alpayariyakrunpod/deepseek'
   - name: 'dockerTag'
-    value: 'latest-1.3b'
+    value: 'latest'
 
 stages:
 - stage: Deploy_AKS
