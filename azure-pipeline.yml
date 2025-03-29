@@ -10,11 +10,11 @@ variables:
   - name: 'parametersFile'
     value: 'aks.parameters.json'
   - name: 'namespace'
-    value: 'deepseek'
-  - name: 'dockerImage'
-    value: 'grafana/grafana'
-  - name: 'dockerTag'
-    value: 'main-ubuntu'
+    value: 'grafana'
+  # - name: 'dockerImage'
+  #   value: 'grafana/grafana'
+  # - name: 'dockerTag'
+  #   value: 'main-ubuntu'
 
 stages:
 - stage: Deploy_AKS
@@ -44,12 +44,12 @@ stages:
         inlineScript: |
           az aks get-credentials --resource-group $(resourceGroupName) --name $(aksClusterName) --overwrite-existing
 
-- stage: Deploy_DeepSeek
-  displayName: 'Deploy DeepSeek to AKS'
+- stage: Deploy_Grafana
+  displayName: 'Deploy Grafana to AKS'
   dependsOn: Deploy_AKS
   jobs:
-  - job: Deploy_DeepSeek
-    displayName: 'Deploy DeepSeek Container'
+  - job: Deploy_Grafana
+    displayName: 'Deploy Grafana Container'
     pool:
       name: 'dsha'  # Ensure this is a valid agent pool
 
@@ -61,8 +61,31 @@ stages:
         script: |
           kubectl create namespace $(namespace) --dry-run=client -o yaml | kubectl apply -f -
 
+    ## 🚀 Create PVC for Grafana ##
     - task: PowerShell@2
-      displayName: 'Deploy DeepSeek AI Container'
+      displayName: 'Create Grafana PVC'
+      inputs:
+        targetType: 'inline'
+        script: |
+          $yaml = @"
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: grafana-pvc
+            namespace: $(namespace)
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 10Gi
+          "@
+          $yaml | Out-File -FilePath grafana-pvc.yaml -Encoding utf8
+          kubectl apply -f grafana-pvc.yaml
+
+    ## 🚀 Deploy Grafana ##
+    - task: PowerShell@2
+      displayName: 'Deploy Grafana'
       inputs:
         targetType: 'inline'
         script: |
@@ -70,29 +93,37 @@ stages:
           apiVersion: apps/v1
           kind: Deployment
           metadata:
-            name: deepseek-deployment
+            name: grafana
             namespace: $(namespace)
           spec:
             replicas: 1
             selector:
               matchLabels:
-                app: deepseek
+                app: grafana
             template:
               metadata:
                 labels:
-                  app: deepseek
+                  app: grafana
               spec:
                 containers:
-                - name: deepseek
-                  image: $(dockerImage):$(dockerTag)
+                - name: grafana
+                  image: grafana/grafana:latest
                   ports:
-                  - containerPort: 8080
+                  - containerPort: 3000
+                  volumeMounts:
+                  - name: grafana-storage
+                    mountPath: /var/lib/grafana
+                volumes:
+                - name: grafana-storage
+                  persistentVolumeClaim:
+                    claimName: grafana-pvc
           "@
-          $yaml | Out-File -FilePath deepseek-deployment.yaml -Encoding utf8
-          kubectl apply -f deepseek-deployment.yaml
+          $yaml | Out-File -FilePath grafana-deployment.yaml -Encoding utf8
+          kubectl apply -f grafana-deployment.yaml
 
+    ## 🚀 Expose Grafana ##
     - task: PowerShell@2
-      displayName: 'Expose DeepSeek Service'
+      displayName: 'Expose Grafana Service'
       inputs:
         targetType: 'inline'
         script: |
@@ -100,16 +131,17 @@ stages:
           apiVersion: v1
           kind: Service
           metadata:
-            name: deepseek-service
+            name: grafana-service
             namespace: $(namespace)
           spec:
             selector:
-              app: deepseek
+              app: grafana
             ports:
               - protocol: TCP
                 port: 80
-                targetPort: 8080
+                targetPort: 3000
             type: LoadBalancer
           "@
-          $yaml | Out-File -FilePath deepseek-service.yaml -Encoding utf8
-          kubectl apply -f deepseek-service.yaml
+          $yaml | Out-File -FilePath grafana-service.yaml -Encoding utf8
+          kubectl apply -f grafana-service.yaml
+
