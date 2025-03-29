@@ -12,9 +12,9 @@ variables:
   - name: 'namespace'
     value: 'deepseek'
   - name: 'dockerImage'
-    value: 'alpayariyakrunpod/deepseek'
+    value: 'grafana/grafana'
   - name: 'dockerTag'
-    value: 'latest'
+    value: 'main-ubuntu'
 
 stages:
 - stage: Deploy_AKS
